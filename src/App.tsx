@@ -187,7 +187,7 @@ export function App() {
       </div>
     </main>
 
-    {hudOpen && <div className="hud-overlay" role="dialog" aria-modal="true" aria-label="Rota HUD"><button className="hud-close" onClick={() => setHudOpen(false)}>ESC · CLOSE</button><HudScene layer={layer} layerIndex={layerIndex} layerCount={profile.layers.length} animate={state.hudAnimations} onNavigate={navigateHud} onSelect={index => notify(layer.tiles[index]?.label ?? "Empty slot")} /></div>}
+    {hudOpen && <div className="hud-overlay" role="dialog" aria-modal="true" aria-label="Rota HUD"><button className="hud-close" onClick={() => setHudOpen(false)}>ESC · CLOSE</button><HudScene layer={layer} layerIndex={layerIndex} layerCount={profile.layers.length} animate={state.hudAnimations} onNavigate={navigateHud} onSelect={index => notify(layer.tiles[index]?.label ?? "Empty slot")} onSelectChild={(tileIndex, childIndex) => notify(layer.tiles[tileIndex]?.children?.[childIndex]?.label ?? "Hold option")} /></div>}
     {toast && <div className="toast"><Sparkles size={15}/>{toast}</div>}
   </div>;
 }
@@ -202,7 +202,13 @@ function DevicesPage({ state, update, notify }: { state: RotaState; update: (rec
 
 function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updateLayer, navigate, open }: { state: RotaState; profile: Profile; layer: HudLayer; layerIndex: number; selectLayer: (id: string) => void; update: (recipe: (draft: RotaState) => void) => void; updateLayer: (recipe: (layer: HudLayer) => void) => void; navigate: (direction: HudDirection) => void; open: () => void }) {
   const [selectedTile, setSelectedTile] = useState(0);
+  const [selectedDeep, setSelectedDeep] = useState(0);
   const selected = layer.tiles[selectedTile];
+  const deepSelected = selected?.children?.[selectedDeep];
+  useEffect(() => {
+    setSelectedTile(0);
+    setSelectedDeep(0);
+  }, [layer.id]);
   const addLayer = (position: HudDirection) => {
     const id = crypto.randomUUID();
     update(draft => {
@@ -226,15 +232,46 @@ function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updat
     while (draft.tiles.length < slots) draft.tiles.push({ id: crypto.randomUUID(), label: "Empty", icon: "+", action: "Unassigned" });
     draft.tiles = draft.tiles.slice(0, slots);
   });
+  const chooseTile = (index: number) => {
+    setSelectedTile(index);
+    setSelectedDeep(0);
+  };
+  const addDeepOption = (tileIndex: number) => {
+    const nextIndex = layer.tiles[tileIndex]?.children?.length ?? 0;
+    updateLayer(draft => {
+      const tile = draft.tiles[tileIndex];
+      tile.children ??= [];
+      tile.children.push({ id: crypto.randomUUID(), label: `Hold ${tile.children.length + 1}`, icon: ">", action: "Unassigned" });
+    });
+    setSelectedTile(tileIndex);
+    setSelectedDeep(nextIndex);
+  };
+  const removeDeepOption = (index: number) => updateLayer(draft => {
+    draft.tiles[selectedTile].children?.splice(index, 1);
+    if (!draft.tiles[selectedTile].children?.length) draft.tiles[selectedTile].children = undefined;
+    setSelectedDeep(Math.max(0, index - 1));
+  });
   return <div className="page hud-studio">
     <LayerMap profile={profile} selectedLayerId={layer.id} selectLayer={selectLayer} addLayer={addLayer} moveLayer={moveLayer}/>
-    <section className="hud-preview-card"><div className="hud-preview-toolbar"><div><span>LIVE THREE.JS PREVIEW</span><strong>{layer.name}</strong></div><button onClick={open}><Rotate3D size={15}/> Immersive</button></div><HudScene layer={layer} layerIndex={layerIndex} layerCount={profile.layers.length} animate={state.hudAnimations} onNavigate={navigate} /></section>
+    <section className="hud-preview-card"><div className="hud-preview-toolbar"><div><span>LIVE HUD EDITOR</span><strong>{layer.name}</strong></div><button onClick={open}><Rotate3D size={15}/> Immersive</button></div><HudScene layer={layer} layerIndex={layerIndex} layerCount={profile.layers.length} animate={state.hudAnimations} onNavigate={navigate} editable selectedIndex={selectedTile} onSelect={chooseTile} onSelectChild={(tileIndex, childIndex) => { setSelectedTile(tileIndex); setSelectedDeep(childIndex); }} onAddDeep={addDeepOption}/></section>
     <section className="inspector">
       <Card title="Layer geometry" icon={Grid3X3}><label className="field"><span>Name</span><input value={layer.name} onChange={event => updateLayer(draft => { draft.name = event.target.value; })}/></label><div className="field split"><span>Direction</span>{layer.id === "main" ? <strong className="fixed-direction">Center · fixed</strong> : <select value={layer.position} onChange={event => moveLayer(layer.id, event.target.value as HudDirection)}>{["left","right","up","down"].map(value => <option key={value}>{value}</option>)}</select>}</div><Range label="Tile slots" value={layer.slots} min={2} max={16} unit="" onChange={setSlots}/><label className="field color-field"><span>Accent</span><input type="color" value={layer.accent} onChange={event => updateLayer(draft => { draft.accent = event.target.value; })}/><code>{layer.accent}</code></label></Card>
       <Card title="Surface & motion" icon={Sparkles}><div className="segmented">{(["graphite","starburst","air"] as const).map(theme => <button key={theme} className={state.hudTheme === theme ? "active" : ""} onClick={() => update(draft => { draft.hudTheme = theme; })}>{theme}</button>)}</div><Toggle checked={state.hudAnimations} onChange={value => update(draft => { draft.hudAnimations = value; })} label="Physics animation" detail="Quaternion rotation, inertia and depth"/></Card>
-      {selected && <Card title={`Tile ${selectedTile + 1} assignment`} icon={Command}><label className="field"><span>Label</span><input value={selected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].label = event.target.value; })}/></label><label className="field"><span>Glyph</span><input value={selected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].icon = event.target.value; })}/></label><label className="field"><span>Action</span><ActionSelect value={selected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].action = value; })}/></label>{actionCategoryFor(selected.action) && <div className="action-breadcrumb"><span>{actionCategoryFor(selected.action)?.glyph}</span>{actionCategoryFor(selected.action)?.label}<i>›</i><strong>{selected.action}</strong></div>}<label className="field"><span>Value</span><input value={selected.detail ?? ""} placeholder="App, URL, shortcut or command" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].detail = event.target.value; })}/></label><button className="wide-action" onClick={() => updateLayer(draft => { const tile = draft.tiles[selectedTile]; tile.children = tile.children?.length ? undefined : [{ id: crypto.randomUUID(), label: "Deep option", icon: "↳", action: "Run Custom Command" }]; })}>{selected.children?.length ? "Remove deep layer" : "Add hold-for-depth layer"}</button></Card>}
+      {selected && <Card title={`Tile ${selectedTile + 1} assignment`} icon={Command}><label className="field"><span>Label</span><input value={selected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].label = event.target.value; })}/></label><label className="field"><span>Glyph</span><input value={selected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].icon = event.target.value; })}/></label><label className="field"><span>Action</span><ActionSelect value={selected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].action = value; })}/></label>{actionCategoryFor(selected.action) && <div className="action-breadcrumb"><span>{actionCategoryFor(selected.action)?.glyph}</span>{actionCategoryFor(selected.action)?.label}<i>›</i><strong>{selected.action}</strong></div>}<label className="field"><span>Value</span><input value={selected.detail ?? ""} placeholder="App, URL, shortcut or command" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].detail = event.target.value; })}/></label></Card>}
+      {selected && <Card title="500 ms hold layer" icon={Plus} className="hold-editor-card">
+        <div className="hold-layer-editor">
+          <header><span><b>SECOND LAYER</b><small>Hold {selected.label} for half a second</small></span><button onClick={() => addDeepOption(selectedTile)}><Plus size={14}/> Add option</button></header>
+          {selected.children?.length ? <div className="hold-option-tabs">{selected.children.map((child, index) => <button key={child.id} className={selectedDeep === index ? "active" : ""} onClick={() => setSelectedDeep(index)}><i>{child.icon}</i><span>{child.label}</span></button>)}</div> : <button className="empty-hold-layer" onClick={() => addDeepOption(selectedTile)}><Plus size={16}/><span>Add the first hold option</span></button>}
+          {deepSelected && <div className="hold-option-form">
+            <label className="field"><span>Hold label</span><input value={deepSelected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].label = event.target.value; })}/></label>
+            <label className="field"><span>Glyph</span><input value={deepSelected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].icon = event.target.value; })}/></label>
+            <label className="field"><span>Action</span><ActionSelect value={deepSelected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].action = value; })}/></label>
+            <label className="field"><span>Value</span><input value={deepSelected.detail ?? ""} placeholder="Optional value" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].detail = event.target.value; })}/></label>
+            <button className="danger-link" onClick={() => removeDeepOption(selectedDeep)}><Trash2 size={13}/> Remove hold option</button>
+          </div>}
+        </div>
+      </Card>}
     </section>
-    <Card title={`Tiles · ${layer.slots} slots`} icon={Command} className="tile-editor"><div className="tile-grid">{Array.from({ length: layer.slots }, (_, index) => { const tile = layer.tiles[index]; return <button key={tile?.id ?? index} className={selectedTile === index ? "selected" : ""} onClick={() => setSelectedTile(index)}><b>{tile?.icon ?? "+"}</b><span>{tile?.label ?? "Empty"}</span><small>{tile?.children?.length ? `${tile.children.length} deep option · ${tile.action}` : tile?.action ?? "Click to assign"}</small></button>; })}</div></Card>
   </div>;
 }
 

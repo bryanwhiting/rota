@@ -1,0 +1,431 @@
+/* Spatial HUD editor and tactical wheel presentation. */
+.layer-map-canvas {
+  grid-template-columns: repeat(3, minmax(176px, 218px));
+  grid-template-rows: repeat(3, 190px);
+  gap: 18px;
+  min-height: 650px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at center, rgba(69, 184, 242, .16), transparent 34%),
+    linear-gradient(rgba(77, 145, 181, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77, 145, 181, .045) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
+}
+
+.layer-map-card {
+  grid-template-rows: 1fr 34px;
+  border-color: rgba(52, 147, 198, .2);
+  background: linear-gradient(150deg, rgba(250, 254, 255, .92), rgba(218, 237, 248, .74));
+}
+
+.layer-wheel-button {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px 7px 5px;
+  border: 0;
+  background: transparent;
+  color: #214860;
+  text-align: left;
+  cursor: pointer;
+}
+
+.layer-wheel {
+  width: 124px;
+  height: 124px;
+  overflow: visible;
+  filter: drop-shadow(0 10px 18px rgba(24, 93, 130, .16));
+}
+
+.layer-wheel-orbit {
+  fill: none;
+  stroke: rgba(43, 139, 190, .3);
+  stroke-width: .75;
+}
+
+.layer-wheel-sector {
+  fill: #0c263b;
+  stroke: var(--wheel-accent);
+  stroke-width: .55;
+  transition: fill 150ms ease, stroke-width 150ms ease;
+}
+
+.layer-wheel-button:hover .layer-wheel-sector {
+  fill: #123d5b;
+  stroke-width: 1;
+}
+
+.layer-wheel-icon {
+  fill: #72cffb;
+  font: 700 7px "Rajdhani";
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.layer-wheel-depth {
+  fill: #eefaff;
+  stroke: #36b7fa;
+  stroke-width: 1.5;
+}
+
+.layer-wheel-dash {
+  fill: none;
+  stroke: rgba(94, 204, 255, .72);
+  stroke-width: .65;
+  stroke-dasharray: 2.3 3.4;
+}
+
+.layer-wheel-hub {
+  fill: #244c73;
+  stroke: var(--wheel-accent);
+  stroke-width: .8;
+}
+
+.layer-wheel-selected {
+  fill: none;
+  stroke: #2bacf0;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  animation: wheel-focus 260ms cubic-bezier(.215, .61, .355, 1);
+}
+
+@keyframes wheel-focus {
+  from { opacity: 0; transform: scale(.96); transform-origin: center; }
+}
+
+.layer-wheel-title {
+  min-width: 0;
+}
+
+.layer-wheel-title strong,
+.layer-wheel-title small {
+  display: block;
+}
+
+.layer-wheel-title strong {
+  overflow: hidden;
+  color: #173f59;
+  font: 600 14px "Rajdhani";
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-wheel-title small {
+  margin-top: 5px;
+  color: #7892a2;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.layer-map-card.selected {
+  border-color: #35afef;
+  background: linear-gradient(145deg, rgba(224, 246, 255, .98), rgba(189, 224, 243, .84));
+}
+
+.layer-map-card.selected::after {
+  top: 8px;
+  right: 8px;
+}
+
+.layer-drop-zone {
+  min-height: 190px;
+}
+
+.hud-preview-card {
+  min-height: 650px;
+  background:
+    radial-gradient(circle at 50% 47%, rgba(26, 72, 104, .92), rgba(7, 16, 24, .99) 62%),
+    linear-gradient(rgba(80, 175, 224, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(80, 175, 224, .035) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
+}
+
+.hud-scene {
+  min-height: 560px;
+}
+
+.hud-tile-icons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-tile-icons button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #55c9ff;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: color 130ms ease, transform 130ms ease;
+}
+
+.hud-tile-icons button:hover,
+.hud-tile-icons button.active {
+  color: #eefaff;
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.hud-tile-icons i {
+  font: normal 20px "Rajdhani";
+  filter: drop-shadow(0 0 8px rgba(76, 197, 255, .34));
+}
+
+.hud-tile-icons b {
+  position: absolute;
+  right: 3px;
+  top: 2px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid rgba(107, 211, 255, .65);
+  border-radius: 50%;
+  color: #dff7ff;
+  background: #0b263a;
+  font: 700 7px "Rajdhani";
+}
+
+.hud-labels {
+  transition: transform 220ms cubic-bezier(.645, .045, .355, 1);
+}
+
+.hud-labels.is-deep {
+  transform: scale(1.045);
+}
+
+.hud-labels button {
+  width: 96px;
+  min-height: 34px;
+  color: #50c6fb;
+  text-shadow: 0 0 12px rgba(44, 177, 234, .2);
+}
+
+.hud-labels button span {
+  margin: 0;
+  overflow: hidden;
+  font: 700 10px "Rajdhani";
+  letter-spacing: .08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hud-labels button:hover,
+.hud-labels button.active {
+  color: #effaff;
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.hud-center-copy strong {
+  color: #62ceff;
+}
+
+.hud-center-copy span {
+  color: #8eb8cc;
+}
+
+.deep-add {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 54px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(75, 190, 245, .68);
+  border-radius: 8px 18px 18px 8px;
+  color: #72d5ff;
+  background: linear-gradient(135deg, rgba(15, 55, 82, .96), rgba(9, 33, 51, .96));
+  box-shadow: 0 9px 28px rgba(0, 0, 0, .28), inset 0 0 20px rgba(71, 184, 240, .08);
+  font: 300 27px "Rajdhani";
+  cursor: pointer;
+  transition: transform 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.deep-add:hover {
+  color: white;
+  border-color: #79dcff;
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.deep-fan::before {
+  inset: 1.8%;
+  border-style: dashed;
+  animation: fan-ring 200ms cubic-bezier(.215, .61, .355, 1);
+}
+
+.deep-fan button {
+  min-width: 86px;
+  min-height: 48px;
+  border-color: rgba(90, 203, 255, .64);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(12, 43, 63, .98), rgba(7, 25, 38, .98));
+  animation: fan-reveal 200ms cubic-bezier(.215, .61, .355, 1);
+}
+
+.deep-fan button span {
+  max-width: 80px;
+  overflow: hidden;
+  color: #dff7ff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-swipe-hint {
+  color: #6d9bb0;
+}
+
+.hold-editor-card {
+  grid-column: 1 / -1;
+}
+
+.hold-layer-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.hold-layer-editor > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hold-layer-editor > header span b,
+.hold-layer-editor > header span small {
+  display: block;
+}
+
+.hold-layer-editor > header span b {
+  color: #248fca;
+  font: 700 9px "Rajdhani";
+  letter-spacing: .14em;
+}
+
+.hold-layer-editor > header span small {
+  margin-top: 3px;
+  color: #7d94a3;
+  font-size: 8px;
+}
+
+.hold-layer-editor > header button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(48, 163, 222, .24);
+  border-radius: 8px;
+  color: #1c7fb5;
+  background: rgba(106, 207, 255, .12);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.hold-option-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 7px;
+}
+
+.hold-option-tabs button,
+.empty-hold-layer {
+  min-height: 54px;
+  border: 1px solid rgba(60, 129, 168, .16);
+  border-radius: 9px;
+  color: #496b80;
+  background: rgba(255, 255, 255, .44);
+  cursor: pointer;
+}
+
+.hold-option-tabs button i,
+.hold-option-tabs button span {
+  display: block;
+  font-style: normal;
+}
+
+.hold-option-tabs button i {
+  color: #239ddd;
+  font-size: 15px;
+}
+
+.hold-option-tabs button span {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hold-option-tabs button.active {
+  border-color: #37abe9;
+  color: #174c69;
+  background: rgba(96, 199, 249, .18);
+  box-shadow: inset 0 -2px #2ba8e7;
+}
+
+.empty-hold-layer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-style: dashed;
+  color: #258dc4;
+}
+
+.hold-option-form {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 9px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(56, 119, 155, .12);
+}
+
+.hold-option-form .field:nth-child(3),
+.hold-option-form .field:nth-child(4),
+.hold-option-form .danger-link {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1050px) {
+  .layer-map-canvas {
+    grid-template-columns: repeat(3, minmax(152px, 1fr));
+  }
+
+  .layer-wheel-button {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .layer-wheel {
+    width: 112px;
+    height: 112px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-wheel-selected,
+  .deep-fan::before,
+  .deep-fan button {
+    animation: none;
+  }
+
+  .layer-wheel-sector,
+  .hud-tile-icons button,
+  .hud-labels,
+  .hud-labels button,
+  .deep-add {
+    transition: none;
+  }
+}
