@@ -1,6 +1,6 @@
 [package]
 name = "rota"
-version = "0.1.9"
+version = "0.1.10"
 description = "Rota trackpad control and spatial HUD"
 authors = ["Rota"]
 edition = "2021"

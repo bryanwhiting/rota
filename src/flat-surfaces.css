@@ -1,0 +1,261 @@
+/* Flat surface system: hierarchy through tone, borders, and spacing. */
+:root {
+  --flat-canvas: #eaf1f5;
+  --flat-sidebar: #f3f7fa;
+  --flat-surface: #f8fbfd;
+  --flat-surface-strong: #ffffff;
+  --flat-surface-muted: #edf4f7;
+  --flat-line: #d3e0e8;
+  --flat-line-strong: #bed2de;
+  --flat-accent: #1598d5;
+  --flat-accent-soft: #e0f2fa;
+  --flat-navy: #081d2a;
+  --flat-navy-raised: #0d2939;
+  --shadow: 0 1px 2px rgba(34, 75, 99, .05), 0 12px 32px rgba(34, 75, 99, .07);
+}
+
+body {
+  background: var(--flat-canvas);
+}
+
+body::before {
+  display: none;
+}
+
+.sidebar {
+  background: var(--flat-sidebar);
+  border-color: var(--flat-line);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, .8);
+  backdrop-filter: none;
+}
+
+.brand-mark {
+  background: var(--flat-surface-strong);
+  box-shadow: none;
+}
+
+.profile-block {
+  border-color: var(--flat-line);
+  background: var(--flat-surface-strong);
+  box-shadow: none;
+}
+
+nav button.active {
+  color: #153f57;
+  border-color: var(--flat-accent);
+  background: var(--flat-accent-soft);
+  box-shadow: none;
+}
+
+.topbar {
+  background: var(--flat-surface);
+  border-color: var(--flat-line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9);
+  backdrop-filter: none;
+}
+
+.card {
+  border-color: var(--flat-line);
+  background: var(--flat-surface);
+  box-shadow: var(--shadow);
+}
+
+.card > header {
+  border-color: var(--flat-line);
+  background: var(--flat-surface-strong);
+}
+
+.top-actions .primary,
+.primary {
+  color: white;
+  border-color: var(--flat-accent);
+  background: var(--flat-accent);
+  box-shadow: 0 5px 14px rgba(21, 152, 213, .17);
+}
+
+.top-actions .ghost,
+.ghost,
+.wide-action {
+  background: var(--flat-surface-strong);
+}
+
+.switch.on {
+  border-color: var(--flat-accent);
+  background: var(--flat-accent);
+  box-shadow: none;
+}
+
+.device-glyph {
+  border-color: var(--flat-line-strong);
+  background: #e6eef3;
+  box-shadow: inset 0 1px white, 0 7px 16px rgba(46, 84, 105, .09);
+}
+
+.route-map i {
+  background: #a9d3e7;
+}
+
+.hud-preview-card {
+  border-color: #183b4c;
+  background: var(--flat-navy);
+  box-shadow: 0 12px 34px rgba(25, 66, 88, .16);
+}
+
+.hud-preview-toolbar {
+  border-color: rgba(145, 201, 229, .15);
+  background: var(--flat-navy-raised);
+}
+
+.layer-tabs button.active {
+  background: var(--flat-accent);
+}
+
+.segmented button.active {
+  background: #dceff7;
+}
+
+.tile-grid button.selected {
+  background: var(--flat-accent-soft);
+  box-shadow: inset 0 -2px var(--flat-accent);
+}
+
+.gesture-pad {
+  border-color: var(--flat-line);
+  background: #f1f7fa;
+}
+
+.action-hierarchy {
+  border-color: var(--flat-line);
+  background: var(--flat-surface);
+  box-shadow: var(--shadow);
+}
+
+.macro-list {
+  border-color: var(--flat-line);
+  background: var(--flat-surface);
+  box-shadow: var(--shadow);
+}
+
+.macro-list > button.active {
+  background: var(--flat-accent-soft);
+  box-shadow: inset 2px 0 var(--flat-accent);
+}
+
+.endpoint {
+  border-color: var(--flat-line);
+  background: #edf7fb;
+}
+
+.toast {
+  background: #137fac;
+  box-shadow: 0 12px 28px rgba(20, 91, 123, .2);
+}
+
+.hud-overlay {
+  background: rgba(5, 20, 29, .97);
+}
+
+.layer-map-panel {
+  border-color: var(--flat-line);
+  background: var(--flat-surface);
+  box-shadow: var(--shadow);
+}
+
+.layer-map-panel > header {
+  border-color: var(--flat-line);
+  background: var(--flat-surface-strong);
+}
+
+.layer-map-canvas {
+  background: var(--flat-surface-muted);
+}
+
+.layer-map-canvas::before,
+.layer-map-canvas::after {
+  background: #c7dde7;
+}
+
+.layer-map-card {
+  border-color: var(--flat-line);
+  background: var(--flat-surface-strong);
+  box-shadow: 0 5px 16px rgba(42, 84, 106, .07);
+}
+
+.layer-map-card.selected,
+.layer-map-card.main-layer {
+  background: #e7f4fa;
+}
+
+.layer-map-card.selected::after {
+  background: var(--flat-accent);
+}
+
+.mini-canvas-empty,
+.mini-canvas-empty:hover {
+  background: #f4f9fb;
+}
+
+.deep-add {
+  background: #0d3043;
+}
+
+.deep-fan button {
+  background: #0b2736;
+}
+
+.hud-editor-backdrop {
+  background: rgba(28, 52, 66, .55);
+}
+
+.hud-editor-modal {
+  background: #edf4f7;
+  box-shadow: 0 30px 90px rgba(22, 55, 73, .3);
+}
+
+.hud-editor-modal-header {
+  background: var(--flat-surface-strong);
+}
+
+.hud-editor-modal-header .ghost,
+.hud-editor-close {
+  background: #f4f8fa;
+}
+
+.hud-editor-close:hover {
+  background: var(--flat-surface-strong);
+}
+
+.range-row output {
+  background: #f4f9fc;
+}
+
+.action-breadcrumb {
+  background: #edf7fb;
+}
+
+.empty-hold-layer,
+.hold-option-tabs button {
+  background: #f7fafc;
+}
+
+.hold-option-tabs button.active {
+  background: var(--flat-accent-soft);
+}
+
+.boot {
+  background: var(--flat-canvas);
+}
+
+.boot i {
+  background: var(--flat-accent);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar,
+  .topbar,
+  .card,
+  .action-hierarchy,
+  .macro-list {
+    background: var(--flat-surface);
+  }
+}
