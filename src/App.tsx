@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   Activity, AppWindow, Bluetooth, ChevronDown, Command, Crosshair, Database,
   Gauge, Grid3X3, Keyboard, MonitorUp, MousePointer2, Plus, Power, Radio,
-  RefreshCw, Rotate3D, Save, Settings2, SlidersHorizontal, Sparkles, Trash2
+  RefreshCw, Rotate3D, Save, Settings2, SlidersHorizontal, Sparkles, Trash2, X
 } from "lucide-react";
 import { createDefaultState, createProfile } from "./defaults";
 import { getBackendStatus, loadState, nativeAction, saveState } from "./lib/backend";
@@ -203,12 +203,15 @@ function DevicesPage({ state, update, notify }: { state: RotaState; update: (rec
 function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updateLayer, navigate, open }: { state: RotaState; profile: Profile; layer: HudLayer; layerIndex: number; selectLayer: (id: string) => void; update: (recipe: (draft: RotaState) => void) => void; updateLayer: (recipe: (layer: HudLayer) => void) => void; navigate: (direction: HudDirection) => void; open: () => void }) {
   const [selectedTile, setSelectedTile] = useState(0);
   const [selectedDeep, setSelectedDeep] = useState(0);
+  const [editorOpen, setEditorOpen] = useState(false);
   const selected = layer.tiles[selectedTile];
   const deepSelected = selected?.children?.[selectedDeep];
   useEffect(() => {
-    setSelectedTile(0);
-    setSelectedDeep(0);
-  }, [layer.id]);
+    if (!editorOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setEditorOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [editorOpen]);
   const addLayer = (position: HudDirection) => {
     const id = crypto.randomUUID();
     update(draft => {
@@ -217,6 +220,9 @@ function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updat
       current.layers.push({ id, name: `${position === "up" ? "Above" : position === "down" ? "Below" : position[0].toUpperCase() + position.slice(1)} HUD`, position, slots: 6, accent: "#69c9ff", shortcut: "", tiles });
     });
     selectLayer(id);
+    setSelectedTile(0);
+    setSelectedDeep(0);
+    setEditorOpen(true);
   };
   const moveLayer = (id: string, position: HudDirection) => update(draft => {
     const current = draft.profiles.find(item => item.id === profile.id)!;
@@ -236,6 +242,12 @@ function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updat
     setSelectedTile(index);
     setSelectedDeep(0);
   };
+  const openEditor = (id: string, tileIndex = 0) => {
+    selectLayer(id);
+    setSelectedTile(tileIndex);
+    setSelectedDeep(0);
+    setEditorOpen(true);
+  };
   const addDeepOption = (tileIndex: number) => {
     const nextIndex = layer.tiles[tileIndex]?.children?.length ?? 0;
     updateLayer(draft => {
@@ -251,27 +263,29 @@ function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updat
     if (!draft.tiles[selectedTile].children?.length) draft.tiles[selectedTile].children = undefined;
     setSelectedDeep(Math.max(0, index - 1));
   });
-  return <div className="page hud-studio">
-    <LayerMap profile={profile} selectedLayerId={layer.id} selectLayer={selectLayer} addLayer={addLayer} moveLayer={moveLayer}/>
-    <section className="hud-preview-card"><div className="hud-preview-toolbar"><div><span>LIVE HUD EDITOR</span><strong>{layer.name}</strong></div><button onClick={open}><Rotate3D size={15}/> Immersive</button></div><HudScene layer={layer} layerIndex={layerIndex} layerCount={profile.layers.length} animate={state.hudAnimations} onNavigate={navigate} editable selectedIndex={selectedTile} onSelect={chooseTile} onSelectChild={(tileIndex, childIndex) => { setSelectedTile(tileIndex); setSelectedDeep(childIndex); }} onAddDeep={addDeepOption}/></section>
-    <section className="inspector">
-      <Card title="Layer geometry" icon={Grid3X3}><label className="field"><span>Name</span><input value={layer.name} onChange={event => updateLayer(draft => { draft.name = event.target.value; })}/></label><div className="field split"><span>Direction</span>{layer.id === "main" ? <strong className="fixed-direction">Center · fixed</strong> : <select value={layer.position} onChange={event => moveLayer(layer.id, event.target.value as HudDirection)}>{["left","right","up","down"].map(value => <option key={value}>{value}</option>)}</select>}</div><Range label="Tile slots" value={layer.slots} min={2} max={16} unit="" onChange={setSlots}/><label className="field color-field"><span>Accent</span><input type="color" value={layer.accent} onChange={event => updateLayer(draft => { draft.accent = event.target.value; })}/><code>{layer.accent}</code></label></Card>
-      <Card title="Surface & motion" icon={Sparkles}><div className="segmented">{(["graphite","starburst","air"] as const).map(theme => <button key={theme} className={state.hudTheme === theme ? "active" : ""} onClick={() => update(draft => { draft.hudTheme = theme; })}>{theme}</button>)}</div><Toggle checked={state.hudAnimations} onChange={value => update(draft => { draft.hudAnimations = value; })} label="Physics animation" detail="Quaternion rotation, inertia and depth"/></Card>
-      {selected && <Card title={`Tile ${selectedTile + 1} assignment`} icon={Command}><label className="field"><span>Label</span><input value={selected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].label = event.target.value; })}/></label><label className="field"><span>Glyph</span><input value={selected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].icon = event.target.value; })}/></label><label className="field"><span>Action</span><ActionSelect value={selected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].action = value; })}/></label>{actionCategoryFor(selected.action) && <div className="action-breadcrumb"><span>{actionCategoryFor(selected.action)?.glyph}</span>{actionCategoryFor(selected.action)?.label}<i>›</i><strong>{selected.action}</strong></div>}<label className="field"><span>Value</span><input value={selected.detail ?? ""} placeholder="App, URL, shortcut or command" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].detail = event.target.value; })}/></label></Card>}
-      {selected && <Card title="500 ms hold layer" icon={Plus} className="hold-editor-card">
-        <div className="hold-layer-editor">
-          <header><span><b>SECOND LAYER</b><small>Hold {selected.label} for half a second</small></span><button onClick={() => addDeepOption(selectedTile)}><Plus size={14}/> Add option</button></header>
-          {selected.children?.length ? <div className="hold-option-tabs">{selected.children.map((child, index) => <button key={child.id} className={selectedDeep === index ? "active" : ""} onClick={() => setSelectedDeep(index)}><i>{child.icon}</i><span>{child.label}</span></button>)}</div> : <button className="empty-hold-layer" onClick={() => addDeepOption(selectedTile)}><Plus size={16}/><span>Add the first hold option</span></button>}
-          {deepSelected && <div className="hold-option-form">
-            <label className="field"><span>Hold label</span><input value={deepSelected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].label = event.target.value; })}/></label>
-            <label className="field"><span>Glyph</span><input value={deepSelected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].icon = event.target.value; })}/></label>
-            <label className="field"><span>Action</span><ActionSelect value={deepSelected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].action = value; })}/></label>
-            <label className="field"><span>Value</span><input value={deepSelected.detail ?? ""} placeholder="Optional value" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].detail = event.target.value; })}/></label>
-            <button className="danger-link" onClick={() => removeDeepOption(selectedDeep)}><Trash2 size={13}/> Remove hold option</button>
-          </div>}
+  return <div className="page hud-studio hud-canvas-page">
+    <LayerMap profile={profile} selectedLayerId={layer.id} editLayer={openEditor} addLayer={addLayer} moveLayer={moveLayer}/>
+    {editorOpen && <div className="hud-editor-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditorOpen(false); }}>
+      <section className="hud-editor-modal" role="dialog" aria-modal="true" aria-labelledby="hud-editor-title">
+        <header className="hud-editor-modal-header">
+          <div><span>EDITING HUD</span><h2 id="hud-editor-title">{layer.name}</h2><p>Click a wedge to configure its action. Hold options appear outside the selected tile.</p></div>
+          <div><button className="ghost" onClick={open}><Rotate3D size={15}/> Immersive</button><button className="hud-editor-close" aria-label="Close HUD editor" onClick={() => setEditorOpen(false)}><X size={18}/></button></div>
+        </header>
+        <div className="hud-editor-modal-body">
+          <section className="hud-preview-card modal-hud-preview"><HudScene layer={layer} layerIndex={layerIndex} layerCount={profile.layers.length} animate={state.hudAnimations} onNavigate={navigate} editable selectedIndex={selectedTile} onSelect={chooseTile} onSelectChild={(tileIndex, childIndex) => { setSelectedTile(tileIndex); setSelectedDeep(childIndex); }} onAddDeep={addDeepOption}/></section>
+          <section className="inspector hud-modal-inspector">
+            <Card title="HUD geometry" icon={Grid3X3}><label className="field"><span>Name</span><input value={layer.name} onChange={event => updateLayer(draft => { draft.name = event.target.value; })}/></label><div className="field split"><span>Direction</span>{layer.id === "main" ? <strong className="fixed-direction">Center - fixed</strong> : <select value={layer.position} onChange={event => moveLayer(layer.id, event.target.value as HudDirection)}>{["left","right","up","down"].map(value => <option key={value}>{value}</option>)}</select>}</div><Range label="Tile slots" value={layer.slots} min={2} max={16} unit="" onChange={setSlots}/><label className="field color-field"><span>Accent</span><input type="color" value={layer.accent} onChange={event => updateLayer(draft => { draft.accent = event.target.value; })}/><code>{layer.accent}</code></label></Card>
+            {selected && <Card title={`Tile ${selectedTile + 1}: ${selected.label}`} icon={Command}><label className="field"><span>Label</span><input value={selected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].label = event.target.value; })}/></label><label className="field"><span>Glyph</span><input value={selected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].icon = event.target.value; })}/></label><label className="field"><span>Action</span><ActionSelect value={selected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].action = value; })}/></label>{actionCategoryFor(selected.action) && <div className="action-breadcrumb"><span>{actionCategoryFor(selected.action)?.glyph}</span>{actionCategoryFor(selected.action)?.label}<i>&gt;</i><strong>{selected.action}</strong></div>}<label className="field"><span>Value</span><input value={selected.detail ?? ""} placeholder="App, URL, shortcut or command" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].detail = event.target.value; })}/></label></Card>}
+            {selected && <Card title="500 ms hold layer" icon={Plus} className="hold-editor-card"><div className="hold-layer-editor">
+              <header><span><b>SECOND LAYER</b><small>Hold {selected.label} for half a second</small></span><button onClick={() => addDeepOption(selectedTile)}><Plus size={14}/> Add option</button></header>
+              {selected.children?.length ? <div className="hold-option-tabs">{selected.children.map((child, index) => <button key={child.id} className={selectedDeep === index ? "active" : ""} onClick={() => setSelectedDeep(index)}><i>{child.icon}</i><span>{child.label}</span></button>)}</div> : <button className="empty-hold-layer" onClick={() => addDeepOption(selectedTile)}><Plus size={16}/><span>Add the first hold option</span></button>}
+              {deepSelected && <div className="hold-option-form"><label className="field"><span>Hold label</span><input value={deepSelected.label} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].label = event.target.value; })}/></label><label className="field"><span>Glyph</span><input value={deepSelected.icon} onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].icon = event.target.value; })}/></label><label className="field"><span>Action</span><ActionSelect value={deepSelected.action} onChange={value => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].action = value; })}/></label><label className="field"><span>Value</span><input value={deepSelected.detail ?? ""} placeholder="Optional value" onChange={event => updateLayer(draft => { draft.tiles[selectedTile].children![selectedDeep].detail = event.target.value; })}/></label><button className="danger-link" onClick={() => removeDeepOption(selectedDeep)}><Trash2 size={13}/> Remove hold option</button></div>}
+            </div></Card>}
+            <Card title="Surface & motion" icon={Sparkles}><div className="segmented">{(["graphite","starburst","air"] as const).map(theme => <button key={theme} className={state.hudTheme === theme ? "active" : ""} onClick={() => update(draft => { draft.hudTheme = theme; })}>{theme}</button>)}</div><Toggle checked={state.hudAnimations} onChange={value => update(draft => { draft.hudAnimations = value; })} label="Physics animation" detail="Quaternion rotation, inertia and depth"/></Card>
+          </section>
         </div>
-      </Card>}
-    </section>
+      </section>
+    </div>}
   </div>;
 }
 

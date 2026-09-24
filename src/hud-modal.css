@@ -1,0 +1,377 @@
+/* Mini-canvas layer overview and focused HUD editor. */
+.app-shell > main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-scroll {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.hud-canvas-page {
+  display: block;
+  width: min(1180px, 100%);
+  min-height: max-content;
+}
+
+.mini-canvas-panel {
+  overflow: hidden;
+}
+
+.mini-canvas {
+  grid-template-columns: repeat(3, minmax(180px, 228px));
+  grid-template-rows: repeat(3, 190px);
+  min-height: 690px;
+  padding: 28px 36px 42px;
+}
+
+.mini-canvas-slot {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.mini-hud-node {
+  --node-accent: #5bcaff;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  max-width: 210px;
+  color: #284f67;
+}
+
+.mini-hud-wheel {
+  display: grid;
+  justify-items: center;
+}
+
+.mini-hud-wheel .layer-wheel {
+  width: 146px;
+  height: 146px;
+  overflow: visible;
+  filter: drop-shadow(0 17px 22px rgba(24, 93, 130, .2));
+}
+
+.mini-hud-tile {
+  cursor: pointer;
+  outline: none;
+}
+
+.mini-hud-tile .layer-wheel-sector {
+  transition: fill 140ms ease, stroke-width 140ms ease, filter 140ms ease;
+}
+
+.mini-hud-tile:hover .layer-wheel-sector,
+.mini-hud-tile:focus-visible .layer-wheel-sector {
+  fill: #185279;
+  stroke-width: 1.45;
+  filter: drop-shadow(0 0 4px var(--node-accent));
+}
+
+.mini-hud-tile:hover .layer-wheel-icon,
+.mini-hud-tile:focus-visible .layer-wheel-icon {
+  fill: #f2fbff;
+}
+
+.mini-hud-center-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 1;
+  cursor: pointer;
+  outline: none;
+}
+
+.mini-hud-center-hit:focus-visible {
+  stroke: #effaff;
+  stroke-dasharray: 2 2;
+}
+
+.mini-hud-name {
+  display: grid;
+  justify-items: center;
+  max-width: 180px;
+  margin-top: -5px;
+  padding: 3px 12px 4px;
+  border: 0;
+  border-radius: 14px;
+  color: #1b4761;
+  background: transparent;
+  cursor: pointer;
+  transition: color 130ms ease, background-color 130ms ease;
+}
+
+.mini-hud-name strong {
+  max-width: 168px;
+  overflow: hidden;
+  font: 700 14px "Rajdhani";
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-hud-name span {
+  margin-top: 1px;
+  color: #7993a3;
+  font-size: 7px;
+}
+
+.mini-hud-name:hover,
+.mini-hud-name:focus-visible {
+  color: #087fbe;
+  background: rgba(86, 193, 246, .1);
+}
+
+.mini-hud-direction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 27px;
+  margin-top: 2px;
+  color: #64869a;
+  font-size: 8px;
+}
+
+.mini-hud-direction > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mini-hud-direction select {
+  min-height: 24px;
+  padding: 0 20px 0 7px;
+  border: 1px solid rgba(61, 135, 176, .2);
+  border-radius: 7px;
+  color: #31657f;
+  background: rgba(255, 255, 255, .68);
+  font-size: 8px;
+}
+
+.mini-hud-node.selected .layer-wheel-selected {
+  stroke: var(--node-accent);
+  stroke-width: 1.5;
+}
+
+.mini-hud-node.selected .mini-hud-name strong {
+  color: #0788ca;
+}
+
+.mini-canvas-empty {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  width: 132px;
+  height: 132px;
+  border: 1px dashed rgba(49, 146, 198, .38);
+  border-radius: 50%;
+  color: #6f94a9;
+  background: radial-gradient(circle, rgba(119, 211, 255, .12), rgba(255, 255, 255, .16) 68%);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(.645, .045, .355, 1), border-color 140ms ease, background-color 140ms ease;
+}
+
+.mini-canvas-empty svg {
+  color: #45afe6;
+}
+
+.mini-canvas-empty strong {
+  color: #3d718c;
+  font-size: 9px;
+}
+
+.mini-canvas-empty span {
+  font-size: 7px;
+}
+
+.mini-canvas-empty:hover {
+  transform: scale(1.035);
+  border-color: #28a8ea;
+  background: radial-gradient(circle, rgba(105, 208, 255, .2), rgba(255, 255, 255, .2) 70%);
+}
+
+.hud-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 26px;
+  background: rgba(19, 39, 52, .48);
+  backdrop-filter: blur(9px) saturate(.9);
+  animation: hud-backdrop-in 220ms cubic-bezier(.215, .61, .355, 1);
+}
+
+.hud-editor-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(1120px, calc(100vw - 52px));
+  max-height: calc(100vh - 52px);
+  min-height: min(720px, calc(100vh - 52px));
+  overflow: hidden;
+  border: 1px solid rgba(115, 205, 249, .36);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(246, 252, 255, .98), rgba(218, 237, 248, .97));
+  box-shadow: 0 38px 120px rgba(18, 58, 82, .36), inset 0 1px white;
+  animation: hud-modal-in 220ms cubic-bezier(.215, .61, .355, 1);
+  will-change: transform, opacity;
+}
+
+.hud-editor-modal-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 88px;
+  padding: 16px 20px 15px 23px;
+  border-bottom: 1px solid rgba(56, 128, 168, .15);
+  background: linear-gradient(100deg, rgba(255, 255, 255, .72), rgba(88, 196, 248, .1));
+}
+
+.hud-editor-modal-header > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-editor-modal-header span {
+  color: #168fd0;
+  font: 700 8px "Rajdhani";
+  letter-spacing: .18em;
+}
+
+.hud-editor-modal-header h2 {
+  margin: 3px 0 2px;
+  color: #173f58;
+  font: 700 22px "Rajdhani";
+}
+
+.hud-editor-modal-header p {
+  margin: 0;
+  color: #758f9f;
+  font-size: 8px;
+}
+
+.hud-editor-modal-header .ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(54, 135, 180, .18);
+  border-radius: 9px;
+  color: #286683;
+  background: rgba(255, 255, 255, .52);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.hud-editor-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(54, 135, 180, .18);
+  border-radius: 50%;
+  color: #4e7488;
+  background: rgba(255, 255, 255, .56);
+  cursor: pointer;
+  transition: color 130ms ease, background-color 130ms ease, transform 130ms ease;
+}
+
+.hud-editor-close:hover {
+  color: #0a79b3;
+  background: white;
+}
+
+.hud-editor-close:active {
+  transform: scale(.96);
+}
+
+.hud-editor-modal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(520px, 1.35fr) minmax(330px, .82fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-hud-preview {
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid rgba(64, 141, 183, .2);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.modal-hud-preview .hud-scene {
+  min-height: 100%;
+  container-type: size;
+}
+
+.modal-hud-preview .hud-labels button.active {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud-modal-inspector {
+  min-height: 0;
+  padding: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #9fc9df transparent;
+}
+
+.hud-modal-inspector .hold-editor-card {
+  grid-column: auto;
+}
+
+@keyframes hud-backdrop-in {
+  from { opacity: 0; }
+}
+
+@keyframes hud-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(.98);
+  }
+}
+
+@media (max-width: 1000px) {
+  .mini-canvas {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+    padding-inline: 18px;
+  }
+
+  .hud-editor-modal-body {
+    grid-template-columns: minmax(430px, 1.15fr) minmax(300px, .85fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mini-hud-tile .layer-wheel-sector,
+  .mini-hud-name,
+  .mini-canvas-empty,
+  .hud-editor-close {
+    transition: none;
+  }
+
+  .hud-editor-backdrop,
+  .hud-editor-modal {
+    animation: none;
+  }
+}

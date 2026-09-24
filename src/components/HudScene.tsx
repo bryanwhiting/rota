@@ -289,7 +289,7 @@ export function HudScene({
           const angle = index / layer.slots * Math.PI * 2;
           return <button key={tile.id} className={selected === index ? "active" : ""}
             aria-label={tile.label}
-            style={{ left: `${50 + Math.cos(angle) * 29}%`, top: `${50 - Math.sin(angle) * 29}%` }}
+            style={{ left: `calc(50% + ${Math.cos(angle) * 29}cqmin)`, top: `calc(50% - ${Math.sin(angle) * 29}cqmin)` }}
             onPointerDown={event => event.stopPropagation()}
             onClick={event => { event.stopPropagation(); setSelected(index); setDeep(false); onSelect?.(index); }}>
             <i>{tile.icon}</i>{tile.children?.length ? <b>{tile.children.length}</b> : null}
@@ -299,9 +299,9 @@ export function HudScene({
       <div className={`hud-labels ${showDeep ? "is-deep" : ""}`}>
         {layer.tiles.slice(0, layer.slots).map((tile, index) => {
           const angle = index / layer.slots * Math.PI * 2;
-          const radius = layer.slots > 10 ? 46 + index % 2 * 5 : 47;
+          const radius = layer.slots > 10 ? 40 + index % 2 * 4 : 44;
           return <button key={tile.id} className={selected === index ? "active" : ""}
-            style={{ left: `${50 + Math.cos(angle) * radius}%`, top: `${50 - Math.sin(angle) * radius}%` }}
+            style={{ left: `calc(50% + ${Math.cos(angle) * radius}cqmin)`, top: `calc(50% - ${Math.sin(angle) * radius}cqmin)` }}
             onPointerDown={event => event.stopPropagation()}
             onClick={event => { event.stopPropagation(); setSelected(index); setDeep(false); onSelect?.(index); }}>
             <span>{tile.label || `Tile ${index + 1}`}</span>
@@ -310,7 +310,7 @@ export function HudScene({
       </div>
       {editable && selected !== null ? <button className="deep-add"
         aria-label={`Add hold option to ${layer.tiles[selected]?.label}`}
-        style={{ left: `${50 + Math.cos(selected / layer.slots * Math.PI * 2) * 41}%`, top: `${50 - Math.sin(selected / layer.slots * Math.PI * 2) * 41}%` }}
+        style={{ left: `calc(50% + ${Math.cos(selected / layer.slots * Math.PI * 2) * 40}cqmin)`, top: `calc(50% - ${Math.sin(selected / layer.slots * Math.PI * 2) * 40}cqmin)` }}
         onPointerDown={event => event.stopPropagation()}
         onClick={event => { event.stopPropagation(); onAddDeep?.(selected); }}>+</button> : null}
       {showDeep && selected !== null && layer.tiles[selected]?.children?.length ? <div className="deep-fan" aria-label={`Hold options for ${layer.tiles[selected].label}`}>
@@ -318,7 +318,7 @@ export function HudScene({
           const origin = selected / layer.slots * Math.PI * 2;
           const angle = origin + (index - (children.length - 1) / 2) * 0.2;
           return <button key={child.id}
-            style={{ left: `${50 + Math.cos(angle) * 48}%`, top: `${50 - Math.sin(angle) * 48}%` }}
+            style={{ left: `calc(50% + ${Math.cos(angle) * 43}cqmin)`, top: `calc(50% - ${Math.sin(angle) * 43}cqmin)` }}
             onPointerDown={event => event.stopPropagation()}
             onClick={event => { event.stopPropagation(); setDeep(false); onSelectChild?.(selected, index); }}>
             <i>{child.icon}</i><span>{child.label}</span>
