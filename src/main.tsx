@@ -5,5 +5,6 @@ import "./styles.css";
 import "./powered-glass.css";
 import "./hud-studio.css";
 import "./hud-modal.css";
+import "./range-controls.css";
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

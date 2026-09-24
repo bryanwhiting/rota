@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   Activity, AppWindow, Bluetooth, ChevronDown, Command, Crosshair, Database,
@@ -40,7 +40,13 @@ function Toggle({ checked, onChange, label, detail }: { checked: boolean; onChan
 }
 
 function Range({ label, value, min = 0, max = 100, unit = "%", onChange }: { label: string; value: number; min?: number; max?: number; unit?: string; onChange: (value: number) => void }) {
-  return <label className="range-row"><span>{label}</span><input type="range" min={min} max={max} value={value} onChange={event => onChange(Number(event.target.value))} /><output>{value}{unit}</output></label>;
+  const progress = Math.max(0, Math.min(100, ((value - min) / Math.max(1, max - min)) * 100));
+  const cleanUnit = unit.trim();
+  return <label className="range-row" style={{ "--range-progress": `${progress}%` } as CSSProperties}>
+    <span className="range-label">{label}</span>
+    <span className="range-control"><input type="range" min={min} max={max} value={value} aria-label={label} aria-valuetext={`${value}${unit}`} onChange={event => onChange(Number(event.target.value))}/></span>
+    <output><strong>{value}</strong>{cleanUnit ? <small>{cleanUnit}</small> : null}</output>
+  </label>;
 }
 
 function Card({ title, icon: Icon, children, className = "" }: { title: string; icon: typeof Grid3X3; children: React.ReactNode; className?: string }) {
