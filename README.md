@@ -18,6 +18,8 @@ React/TypeScript settings surface and a Three.js spatial HUD.
   system actions, macOS settings, apps and bookmarks, and Custom Commands.
 - A native macOS menu bar with standard app, edit, and window behavior plus
   direct access to the full action hierarchy, HUD, and settings destinations.
+- A persistent Rota status icon in the macOS menu bar with quick access to the
+  app, immersive HUD, HUD Studio, settings, and Quit.
 - Rust-owned atomic settings persistence and simplified native action adapters.
 - A local MCP Streamable HTTP server through which agents can read or edit every setting.
 

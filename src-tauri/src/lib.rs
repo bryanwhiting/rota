@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{fs, process::Command};
-use tauri::{Emitter, Manager, State};
+use tauri::{
+    menu::MenuBuilder,
+    tray::TrayIconBuilder,
+    AppHandle, Emitter, Manager, State,
+};
 
 mod mac_menu;
 mod mcp;
@@ -89,25 +93,66 @@ fn perform_native_action(action: NativeAction) -> Result<String, String> {
     }
 }
 
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+fn install_status_item(app: &AppHandle) -> tauri::Result<()> {
+    let menu = MenuBuilder::new(app)
+        .text("tray|open", "Open Rota")
+        .text("tray|hud", "Open Immersive HUD")
+        .separator()
+        .text("tray|studio", "HUD Studio")
+        .text("tray|settings", "Settings...")
+        .separator()
+        .text("tray|quit", "Quit Rota")
+        .build()?;
+
+    let mut builder = TrayIconBuilder::with_id("rota-status")
+        .tooltip("Rota")
+        .menu(&menu)
+        .show_menu_on_left_click(true);
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .menu(mac_menu::build)
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
-            if id.starts_with("nav|")
-                || id.starts_with("hud|")
-                || id.starts_with("state|")
-                || id.starts_with("action|")
-            {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
+            match id {
+                "tray|open" => show_main_window(app),
+                "tray|hud" => {
+                    show_main_window(app);
+                    let _ = app.emit("rota-menu", "hud|open");
                 }
-                let _ = app.emit("rota-menu", id);
+                "tray|studio" => {
+                    show_main_window(app);
+                    let _ = app.emit("rota-menu", "nav|hud");
+                }
+                "tray|settings" => {
+                    show_main_window(app);
+                    let _ = app.emit("rota-menu", "nav|general");
+                }
+                "tray|quit" => app.exit(0),
+                _ if id.starts_with("nav|") || id.starts_with("hud|") || id.starts_with("state|") || id.starts_with("action|") => {
+                    show_main_window(app);
+                    let _ = app.emit("rota-menu", id);
+                }
+                _ => {}
             }
         })
         .setup(|app| {
+            install_status_item(app.handle())?;
             let directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
             fs::create_dir_all(&directory)?;
             let store = RotaStore::new(directory.join("rota-state.json"));
