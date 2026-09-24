@@ -42,7 +42,7 @@ npm run tauri build -- --bundles app
 Or build, copy to `/Applications/Rota.app`, and launch:
 
 ```sh
-./launch.sh
+./launch.sh --keep-accessibility
 ```
 
 ## Rota MCP server

@@ -18,7 +18,7 @@ done
 npm run tauri build -- --bundles app
 app_source="$script_dir/src-tauri/target/release/bundle/macos/Rota.app"
 app_target="/Applications/Rota.app"
-certificate="$script_dir/../Rotagivan/.signing/certificate.pem"
+certificate="$script_dir/.signing/certificate.pem"
 
 if [[ ! -d "$app_source" ]]; then
   print -u2 "Rota build not found at $app_source"
@@ -26,7 +26,7 @@ if [[ ! -d "$app_source" ]]; then
 fi
 
 if [[ ! -f "$certificate" ]]; then
-  print -u2 "Saved Rotagivan Development certificate not found at $certificate"
+  print -u2 "Saved Rota Development certificate not found at $certificate"
   exit 1
 fi
 
@@ -36,7 +36,7 @@ if [[ ! "$signing_identity" =~ '^[0-9A-Fa-f]{40}$' ]]; then
   exit 1
 fi
 /usr/bin/security find-identity -v -p codesigning | /usr/bin/grep -Fq "$signing_identity" || {
-  print -u2 "Rotagivan Development signing identity is unavailable in Keychain"
+  print -u2 "Rota Development signing identity is unavailable in Keychain"
   exit 1
 }
 requirement="=identifier \"app.rota.desktop\" and certificate leaf = H\"$signing_identity\""
