@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { HudDirection, HudLayer } from "../types";
 
 interface HudSceneProps {
@@ -19,14 +18,56 @@ interface DragState {
   active: boolean;
   x: number;
   y: number;
-  lastX: number;
-  lastY: number;
   hold?: number;
   didHold: boolean;
+  hit: number | null;
+}
+
+const TAU = Math.PI * 2;
+const VIEW_RADIUS = 240;
+const SECTOR_INNER = 80;
+const SECTOR_OUTER = 140;
+const LABEL_RADIUS = 194;
+
+const point = (radius: number, angle: number) => ({
+  x: Math.cos(angle) * radius,
+  y: Math.sin(angle) * radius
+});
+
+function annularPath(inner: number, outer: number, start: number, end: number) {
+  const outerStart = point(outer, start);
+  const outerEnd = point(outer, end);
+  const innerEnd = point(inner, end);
+  const innerStart = point(inner, start);
+  const large = end - start > Math.PI ? 1 : 0;
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outer} ${outer} 0 ${large} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${inner} ${inner} 0 ${large} 0 ${innerStart.x} ${innerStart.y}`,
+    "Z"
+  ].join(" ");
+}
+
+function sectorGeometry(index: number, count: number, inner = SECTOR_INNER, outer = SECTOR_OUTER) {
+  const slice = TAU / count;
+  const gap = Math.min(0.08, slice * 0.16);
+  const mid = index * slice;
+  return {
+    mid,
+    start: mid - slice / 2 + gap / 2,
+    end: mid + slice / 2 - gap / 2,
+    path: annularPath(inner, outer, mid - slice / 2 + gap / 2, mid + slice / 2 - gap / 2)
+  };
 }
 
 const directionFromDelta = (x: number, y: number): HudDirection =>
   Math.abs(x) > Math.abs(y) ? (x < 0 ? "left" : "right") : (y < 0 ? "up" : "down");
+
+const labelAnchor = (angle: number) => {
+  const horizontal = Math.cos(angle);
+  return horizontal > 0.28 ? "start" : horizontal < -0.28 ? "end" : "middle";
+};
 
 export function HudScene({
   layer,
@@ -40,292 +81,194 @@ export function HudScene({
   onSelectChild,
   onAddDeep
 }: HudSceneProps) {
-  const host = useRef<HTMLDivElement>(null);
-  const sceneApi = useRef<{ group: THREE.Group; target: THREE.Quaternion; velocity: THREE.Vector2 } | null>(null);
-  const drag = useRef<DragState>({ active: false, x: 0, y: 0, lastX: 0, lastY: 0, didHold: false });
+  const svg = useRef<SVGSVGElement>(null);
+  const drag = useRef<DragState>({ active: false, x: 0, y: 0, didHold: false, hit: null });
   const [selected, setSelected] = useState<number | null>(selectedIndex ?? null);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [holding, setHolding] = useState<number | null>(null);
   const [deep, setDeep] = useState(false);
-  const selectedRef = useRef<number | null>(null);
-  const deepRef = useRef(false);
-  const reducedMotion = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
-  const selectedTile = selected === null ? undefined : layer.tiles[selected];
-  const showDeep = deep || Boolean(editable && selectedTile?.children?.length);
 
-  useEffect(() => { selectedRef.current = selected; }, [selected]);
-  useEffect(() => { deepRef.current = showDeep; }, [showDeep]);
   useEffect(() => {
     if (selectedIndex !== undefined) setSelected(selectedIndex);
   }, [selectedIndex, layer.id]);
 
-  useEffect(() => {
-    const element = host.current;
-    if (!element) return;
+  useEffect(() => () => window.clearTimeout(drag.current.hold), []);
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-    camera.position.set(0, 0, 8.7);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    element.appendChild(renderer.domElement);
+  const count = Math.max(2, layer.slots);
+  const tiles = layer.tiles.slice(0, count);
+  const activeIndex = hovered ?? selected;
+  const deepTile = selected === null ? undefined : tiles[selected];
+  const showDeep = deep || Boolean(editable && deepTile?.children?.length);
 
-    const root = new THREE.Group();
-    scene.add(root);
-
-    const rim = new THREE.Mesh(
-      new THREE.RingGeometry(2.27, 2.3, 128),
-      new THREE.MeshBasicMaterial({ color: layer.accent, transparent: true, opacity: 0.58, side: THREE.DoubleSide })
-    );
-    root.add(rim);
-    const innerAccent = new THREE.Mesh(
-      new THREE.RingGeometry(0.72, 0.735, 96),
-      new THREE.MeshBasicMaterial({ color: layer.accent, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
-    );
-    innerAccent.position.z = 0.025;
-    root.add(innerAccent);
-
-    const count = Math.max(2, layer.slots);
-    const sectors: THREE.Mesh[] = [];
-    for (let index = 0; index < count; index += 1) {
-      const slice = Math.PI * 2 / count;
-      const gap = Math.min(0.075, slice * 0.16);
-      const start = -slice / 2 + index * slice + gap / 2;
-      const geometry = new THREE.RingGeometry(0.92, 2.24, 64, 1, start, slice - gap);
-      const material = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(index % 2 ? "#0b2032" : "#0d263c"),
-        emissive: new THREE.Color(layer.accent),
-        emissiveIntensity: 0.018,
-        roughness: 0.28,
-        metalness: 0.28,
-        transparent: true,
-        opacity: 0.96,
-        side: THREE.DoubleSide,
-        clearcoat: 0.8,
-        clearcoatRoughness: 0.22
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      const outline = new THREE.LineSegments(
-        new THREE.EdgesGeometry(geometry),
-        new THREE.LineBasicMaterial({ color: layer.accent, transparent: true, opacity: 0.42 })
-      );
-      mesh.add(outline);
-      mesh.userData.outline = outline;
-      mesh.position.z = index % 2 ? 0.005 : 0;
-      sectors.push(mesh);
-      root.add(mesh);
-    }
-
-    const center = new THREE.Mesh(
-      new THREE.CircleGeometry(0.62, 64),
-      new THREE.MeshPhysicalMaterial({
-        color: "#244c73",
-        emissive: layer.accent,
-        emissiveIntensity: 0.12,
-        roughness: 0.26,
-        metalness: 0.35
-      })
-    );
-    center.position.z = 0.035;
-    root.add(center);
-
-    const glow = new THREE.PointLight(layer.accent, 7, 12, 2);
-    glow.position.set(-1.5, 1.4, 3.5);
-    scene.add(glow);
-    scene.add(new THREE.AmbientLight(0xffffff, 1.8));
-
-    const api = { group: root, target: new THREE.Quaternion(), velocity: new THREE.Vector2() };
-    sceneApi.current = api;
-    const resize = () => {
-      const { width, height } = element.getBoundingClientRect();
-      renderer.setSize(width, height, false);
-      camera.aspect = width / Math.max(1, height);
-      camera.updateProjectionMatrix();
-    };
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(element);
-
-    let frame = 0;
-    const timer = new THREE.Timer();
-    timer.connect(document);
-    const tick = (timestamp: number) => {
-      timer.update(timestamp);
-      const dt = Math.min(timer.getDelta(), 1 / 24);
-      if (!reducedMotion && animate) {
-        root.rotation.y += api.velocity.x * dt;
-        root.rotation.x += api.velocity.y * dt;
-        api.velocity.multiplyScalar(Math.pow(0.0008, dt));
-        root.quaternion.slerp(api.target, 1 - Math.pow(0.00008, dt));
-      } else {
-        root.quaternion.copy(api.target);
-      }
-      sectors.forEach((sector, index) => {
-        const material = sector.material as THREE.MeshPhysicalMaterial;
-        const outline = (sector.userData.outline as THREE.LineSegments).material as THREE.LineBasicMaterial;
-        const active = selectedRef.current === index;
-        material.color.set(active ? "#134870" : index % 2 ? "#0b2032" : "#0d263c");
-        material.emissiveIntensity = active ? 0.28 : 0.018;
-        outline.opacity += ((active ? 1 : 0.42) - outline.opacity) * 0.2;
-        sector.position.z += ((active ? 0.1 : index % 2 ? 0.005 : 0) - sector.position.z) * 0.2;
-      });
-      const scale = deepRef.current ? 0.92 : 1;
-      root.scale.lerp(new THREE.Vector3(scale, scale, 1), 0.16);
-      renderer.render(scene, camera);
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      timer.dispose();
-      observer.disconnect();
-      renderer.dispose();
-      scene.traverse(object => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
-          object.geometry.dispose();
-          const materials = Array.isArray(object.material) ? object.material : [object.material];
-          materials.forEach(material => material.dispose());
-        }
-      });
-      renderer.domElement.remove();
-      sceneApi.current = null;
-    };
-  }, [layer.id, layer.slots, layer.accent, animate, reducedMotion]);
-
-  useEffect(() => {
-    const api = sceneApi.current;
-    if (!api) return;
-    const angle = (layerIndex / Math.max(1, layerCount)) * Math.PI * 2;
-    api.target.setFromEuler(new THREE.Euler(-0.06, Math.sin(angle) * 0.06, -angle * 0.035));
-  }, [layerIndex, layerCount]);
-
-  const selectFromPoint = (clientX: number, clientY: number): number | null => {
-    const bounds = host.current?.getBoundingClientRect();
-    if (!bounds) return null;
-    const x = clientX - bounds.left - bounds.width / 2;
-    const y = clientY - bounds.top - bounds.height / 2;
-    const radius = Math.hypot(x, y);
-    const diameter = Math.min(bounds.width, bounds.height);
-    if (radius < diameter * 0.09 || radius > diameter * 0.42) {
-      setSelected(null);
-      return null;
-    }
-    const angle = (Math.atan2(-y, x) + Math.PI * 2) % (Math.PI * 2);
-    const index = Math.floor(((angle + Math.PI / layer.slots) % (Math.PI * 2)) / (Math.PI * 2 / layer.slots));
-    setSelected(index);
-    return index;
+  const indexFromPoint = (clientX: number, clientY: number) => {
+    const element = svg.current;
+    const matrix = element?.getScreenCTM();
+    if (!element || !matrix) return null;
+    const local = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
+    const radius = Math.hypot(local.x, local.y);
+    if (radius < 66 || radius > 148) return null;
+    const angle = (Math.atan2(local.y, local.x) + TAU) % TAU;
+    const slice = TAU / count;
+    return Math.floor(((angle + slice / 2) % TAU) / slice);
   };
 
-  const pointerDown = (event: React.PointerEvent) => {
+  const selectTile = (index: number) => {
+    setSelected(index);
+    setHovered(index);
+    setDeep(false);
+    onSelect?.(index);
+  };
+
+  const pointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
-    const hit = selectFromPoint(event.clientX, event.clientY);
+    const hit = indexFromPoint(event.clientX, event.clientY);
     setDeep(false);
     drag.current = {
       active: true,
       x: event.clientX,
       y: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      didHold: false
+      didHold: false,
+      hit
     };
-    if (hit !== null && layer.tiles[hit]?.children?.length) {
+    if (hit !== null && tiles[hit]?.children?.length) {
+      setHolding(hit);
       drag.current.hold = window.setTimeout(() => {
         drag.current.didHold = true;
         setSelected(hit);
+        setHovered(hit);
+        setHolding(null);
         setDeep(true);
       }, 500);
     }
   };
 
-  const pointerMove = (event: React.PointerEvent) => {
+  const pointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    const hit = indexFromPoint(event.clientX, event.clientY);
+    setHovered(hit);
     if (!drag.current.active) return;
-    const dx = event.clientX - drag.current.lastX;
-    const dy = event.clientY - drag.current.lastY;
-    drag.current.lastX = event.clientX;
-    drag.current.lastY = event.clientY;
+    drag.current.hit = hit;
     if (Math.hypot(event.clientX - drag.current.x, event.clientY - drag.current.y) > 8) {
       window.clearTimeout(drag.current.hold);
+      setHolding(null);
     }
-    const api = sceneApi.current;
-    if (api) {
-      api.group.rotation.y += dx * 0.006;
-      api.group.rotation.x += dy * 0.006;
-      api.velocity.set(dx * 0.8, dy * 0.8);
-    }
-    selectFromPoint(event.clientX, event.clientY);
   };
 
-  const pointerUp = (event: React.PointerEvent) => {
+  const pointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!drag.current.active) return;
     window.clearTimeout(drag.current.hold);
+    setHolding(null);
     const dx = event.clientX - drag.current.x;
     const dy = event.clientY - drag.current.y;
+    const hit = drag.current.hit;
     drag.current.active = false;
     if (drag.current.didHold) return;
     if (Math.hypot(dx, dy) > 44) {
       setDeep(false);
       onNavigate(directionFromDelta(dx, dy));
-    } else if (selected !== null) {
-      setDeep(false);
-      onSelect?.(selected);
+    } else if (hit !== null) {
+      selectTile(hit);
     }
   };
 
   const pointerCancel = () => {
     window.clearTimeout(drag.current.hold);
     drag.current.active = false;
+    setHolding(null);
     setDeep(false);
   };
 
+  const keyboardSelect = (event: React.KeyboardEvent<SVGGElement>, index: number) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectTile(index);
+    }
+  };
+
+  const selectedGeometry = activeIndex === null ? null : sectorGeometry(activeIndex, count, 146, 176);
+  const children = deepTile?.children ?? [];
+  const fanWidth = Math.min(0.3, (TAU / count) * 0.42);
+  const fanStep = fanWidth + 0.035;
+  const selectedMid = selected === null ? 0 : selected * TAU / count;
+
   return (
-    <div className="hud-scene" ref={host} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}>
+    <div className={`hud-scene hud-2d ${showDeep ? "is-deep" : ""} ${animate ? "motion-on" : "motion-off"}`}
+      style={{ "--hud-accent": layer.accent } as CSSProperties}>
       <div className="hud-orbit" aria-hidden="true"><span>{layerIndex + 1}</span> / {layerCount}</div>
-      <div className="hud-center-copy" aria-live="polite">
-        <strong>ROTA</strong><span>{showDeep ? "HOLD LAYER" : layer.name}</span>
-      </div>
-      <div className="hud-tile-icons">
-        {layer.tiles.slice(0, layer.slots).map((tile, index) => {
-          const angle = index / layer.slots * Math.PI * 2;
-          return <button key={tile.id} className={selected === index ? "active" : ""}
-            aria-label={tile.label}
-            style={{ left: `calc(50% + ${Math.cos(angle) * 29}cqmin)`, top: `calc(50% - ${Math.sin(angle) * 29}cqmin)` }}
-            onPointerDown={event => event.stopPropagation()}
-            onClick={event => { event.stopPropagation(); setSelected(index); setDeep(false); onSelect?.(index); }}>
-            <i>{tile.icon}</i>{tile.children?.length ? <b>{tile.children.length}</b> : null}
-          </button>;
-        })}
-      </div>
-      <div className={`hud-labels ${showDeep ? "is-deep" : ""}`}>
-        {layer.tiles.slice(0, layer.slots).map((tile, index) => {
-          const angle = index / layer.slots * Math.PI * 2;
-          const radius = layer.slots > 10 ? 40 + index % 2 * 4 : 44;
-          return <button key={tile.id} className={selected === index ? "active" : ""}
-            style={{ left: `calc(50% + ${Math.cos(angle) * radius}cqmin)`, top: `calc(50% - ${Math.sin(angle) * radius}cqmin)` }}
-            onPointerDown={event => event.stopPropagation()}
-            onClick={event => { event.stopPropagation(); setSelected(index); setDeep(false); onSelect?.(index); }}>
-            <span>{tile.label || `Tile ${index + 1}`}</span>
-          </button>;
-        })}
-      </div>
-      {editable && selected !== null ? <button className="deep-add"
-        aria-label={`Add hold option to ${layer.tiles[selected]?.label}`}
-        style={{ left: `calc(50% + ${Math.cos(selected / layer.slots * Math.PI * 2) * 40}cqmin)`, top: `calc(50% - ${Math.sin(selected / layer.slots * Math.PI * 2) * 40}cqmin)` }}
-        onPointerDown={event => event.stopPropagation()}
-        onClick={event => { event.stopPropagation(); onAddDeep?.(selected); }}>+</button> : null}
-      {showDeep && selected !== null && layer.tiles[selected]?.children?.length ? <div className="deep-fan" aria-label={`Hold options for ${layer.tiles[selected].label}`}>
-        {layer.tiles[selected].children!.map((child, index, children) => {
-          const origin = selected / layer.slots * Math.PI * 2;
-          const angle = origin + (index - (children.length - 1) / 2) * 0.2;
-          return <button key={child.id}
-            style={{ left: `calc(50% + ${Math.cos(angle) * 43}cqmin)`, top: `calc(50% - ${Math.sin(angle) * 43}cqmin)` }}
-            onPointerDown={event => event.stopPropagation()}
-            onClick={event => { event.stopPropagation(); setDeep(false); onSelectChild?.(selected, index); }}>
-            <i>{child.icon}</i><span>{child.label}</span>
-          </button>;
-        })}
-      </div> : null}
-      <div className="hud-swipe-hint">{editable ? "SELECT A WEDGE - + ADDS A 500 MS HOLD LAYER" : "SWIPE - HOLD 500 MS FOR DEPTH"}</div>
+      <svg ref={svg} className="hud-2d-svg" viewBox={`${-VIEW_RADIUS} ${-VIEW_RADIUS} ${VIEW_RADIUS * 2} ${VIEW_RADIUS * 2}`}
+        role="application" aria-label={`${layer.name} radial HUD`}
+        onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp}
+        onPointerCancel={pointerCancel} onPointerLeave={() => { if (!drag.current.active) setHovered(null); }}>
+        <g key={layer.id} className="hud-2d-wheel">
+          <g className="hud-2d-primary">
+            <circle className="hud-outer-ring" r="142"/>
+            {tiles.map((tile, index) => {
+              const geometry = sectorGeometry(index, count);
+              const icon = point(110, geometry.mid);
+              const labelRadius = count > 10 ? LABEL_RADIUS + index % 2 * 18 : LABEL_RADIUS;
+              const label = point(labelRadius, geometry.mid);
+              const active = activeIndex === index;
+              return <g key={tile.id} className={`hud-sector ${active ? "active" : ""} ${holding === index ? "holding" : ""}`}
+                role="button" tabIndex={0} aria-label={`${tile.label}: ${tile.action}`}
+                onFocus={() => setHovered(index)} onBlur={() => setHovered(null)}
+                onKeyDown={event => keyboardSelect(event, index)}>
+                <title>{`${tile.label} - ${tile.action}`}</title>
+                <path className="hud-sector-shape" d={geometry.path}/>
+                <text className="hud-sector-icon" x={icon.x} y={icon.y} textAnchor="middle" dominantBaseline="central">{tile.icon || "+"}</text>
+                {tile.children?.length ? <circle className="hud-depth-dot" cx={point(132, geometry.mid).x} cy={point(132, geometry.mid).y} r="3"/> : null}
+                <text className="hud-sector-label" x={label.x} y={label.y} textAnchor={labelAnchor(geometry.mid)} dominantBaseline="central">{tile.label || `TILE ${index + 1}`}</text>
+              </g>;
+            })}
+            <circle className="hud-inner-dash" r="60"/>
+            <circle className="hud-hub" r="30"/>
+            <text className="hud-hub-title" y="-3" textAnchor="middle">ROTA</text>
+            <text className="hud-hub-subtitle" y="10" textAnchor="middle">{showDeep ? "HOLD" : String(layerIndex + 1).padStart(2, "0")}</text>
+          </g>
+
+          {showDeep && selected !== null && children.map((child, index) => {
+            const mid = selectedMid + (index - (children.length - 1) / 2) * fanStep;
+            const path = annularPath(148, 184, mid - fanWidth / 2, mid + fanWidth / 2);
+            const icon = point(166, mid);
+            return <g key={child.id} className="hud-deep-sector" role="button" tabIndex={0}
+              aria-label={`${child.label}: ${child.action}`}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => { event.stopPropagation(); setDeep(false); onSelectChild?.(selected, index); }}
+              onKeyDown={event => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setDeep(false);
+                  onSelectChild?.(selected, index);
+                }
+              }}>
+              <title>{`${child.label} - ${child.action}`}</title>
+              <path d={path}/>
+              <text x={icon.x} y={icon.y} textAnchor="middle" dominantBaseline="central">{child.icon || ">"}</text>
+            </g>;
+          })}
+
+          {editable && activeIndex !== null && selectedGeometry ? (() => {
+            const hasFan = activeIndex === selected && children.length > 0;
+            const addMid = selectedGeometry.mid + (hasFan ? (children.length + 1) / 2 * fanStep : 0);
+            const addPath = hasFan
+              ? annularPath(148, 184, addMid - fanWidth / 2, addMid + fanWidth / 2)
+              : selectedGeometry.path;
+            const icon = point(hasFan ? 166 : 161, addMid);
+            return <g className="hud-add-sector" role="button" tabIndex={0} aria-label={`Add hold option to ${tiles[activeIndex]?.label}`}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => { event.stopPropagation(); setSelected(activeIndex); onAddDeep?.(activeIndex); }}
+              onKeyDown={event => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelected(activeIndex);
+                  onAddDeep?.(activeIndex);
+                }
+              }}>
+              <path d={addPath}/>
+              <text x={icon.x} y={icon.y} textAnchor="middle" dominantBaseline="central">+</text>
+            </g>;
+          })() : null}
+        </g>
+      </svg>
+      <div className="hud-swipe-hint">{editable ? "CLICK A WEDGE TO EDIT - + ADDS A 500 MS HOLD ACTION" : "SWIPE TO CHANGE HUD - HOLD 500 MS FOR DEPTH"}</div>
     </div>
   );
 }

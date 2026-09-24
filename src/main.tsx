@@ -7,5 +7,6 @@ import "./hud-studio.css";
 import "./hud-modal.css";
 import "./range-controls.css";
 import "./flat-surfaces.css";
+import "./hud-2d.css";
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

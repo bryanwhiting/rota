@@ -2687,7 +2687,7 @@ dependencies = [
 
 [[package]]
 name = "rota"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "axum",
  "json-patch",

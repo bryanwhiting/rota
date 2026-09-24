@@ -1,0 +1,178 @@
+.hud-2d {
+  position: relative;
+  isolation: isolate;
+  background: #080d14;
+  cursor: crosshair;
+  container-type: size;
+}
+
+.hud-2d:active { cursor: crosshair; }
+
+.hud-2d-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  touch-action: none;
+}
+
+.hud-2d-wheel,
+.hud-2d-primary {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.motion-on .hud-2d-wheel { animation: hud-2d-enter 180ms ease-out; }
+
+.hud-2d-primary {
+  transition: opacity 180ms ease, transform 200ms cubic-bezier(.645, .045, .355, 1);
+}
+
+.hud-2d.is-deep .hud-2d-primary {
+  opacity: .68;
+  transform: scale(.88);
+}
+
+.hud-outer-ring {
+  fill: none;
+  stroke: #1e4b75;
+  stroke-width: 1;
+}
+
+.hud-sector {
+  outline: none;
+  cursor: pointer;
+}
+
+.hud-sector-shape {
+  fill: #0a2238;
+  stroke: #1e4b75;
+  stroke-width: 1.2;
+  transition: fill 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
+}
+
+.hud-sector.active .hud-sector-shape,
+.hud-sector:focus-visible .hud-sector-shape {
+  fill: #134870;
+  stroke: var(--hud-accent);
+  stroke-width: 2;
+}
+
+.hud-sector.holding .hud-sector-shape { animation: hud-2d-hold 500ms linear both; }
+
+.hud-sector-icon,
+.hud-sector-label,
+.hud-hub-title,
+.hud-hub-subtitle,
+.hud-deep-sector text,
+.hud-add-sector text {
+  pointer-events: none;
+  user-select: none;
+}
+
+.hud-sector-icon {
+  fill: var(--hud-accent);
+  font: 500 17px "Rajdhani", monospace;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--hud-accent) 38%, transparent));
+  transition: fill 140ms ease, transform 140ms ease;
+}
+
+.hud-sector.active .hud-sector-icon { fill: #f4fbff; }
+
+.hud-sector-label {
+  fill: var(--hud-accent);
+  font: 700 9px "Rajdhani", monospace;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  transition: fill 140ms ease;
+}
+
+.hud-sector.active .hud-sector-label { fill: #eaf8ff; }
+
+.hud-depth-dot {
+  fill: var(--hud-accent);
+  stroke: #080d14;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.hud-inner-dash {
+  fill: none;
+  stroke: var(--hud-accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+  opacity: .72;
+  pointer-events: none;
+}
+
+.hud-hub {
+  fill: #1e4b75;
+  stroke: var(--hud-accent);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.hud-hub-title {
+  fill: #f1faff;
+  font: 700 8px "Rajdhani", monospace;
+  letter-spacing: .2em;
+}
+
+.hud-hub-subtitle {
+  fill: var(--hud-accent);
+  font: 700 6px "Rajdhani", monospace;
+  letter-spacing: .12em;
+}
+
+.hud-deep-sector,
+.hud-add-sector {
+  outline: none;
+  cursor: pointer;
+}
+
+.hud-deep-sector path,
+.hud-add-sector path {
+  fill: #0a2238;
+  stroke: var(--hud-accent);
+  stroke-width: 1.4;
+  transition: fill 140ms ease;
+}
+
+.hud-deep-sector text,
+.hud-add-sector text {
+  fill: #dff6ff;
+  font: 700 13px "Rajdhani", monospace;
+}
+
+.hud-deep-sector:hover path,
+.hud-deep-sector:focus-visible path,
+.hud-add-sector:hover path,
+.hud-add-sector:focus-visible path { fill: #17608c; }
+
+.hud-add-sector path { stroke-dasharray: 4 3; }
+
+.hud-add-sector:hover path,
+.hud-add-sector:focus-visible path { fill: var(--hud-accent); }
+
+.hud-add-sector:hover text,
+.hud-add-sector:focus-visible text { fill: #080d14; }
+
+.hud-2d .hud-orbit,
+.hud-2d .hud-swipe-hint {
+  z-index: 2;
+  color: #7396aa;
+  pointer-events: none;
+}
+
+.hud-2d .hud-orbit span { color: var(--hud-accent); }
+
+.hud-2d .hud-swipe-hint {
+  width: max-content;
+  max-width: calc(100% - 36px);
+  text-align: center;
+}
+
+@keyframes hud-2d-enter {
+  from { opacity: 0; transform: scale(.97); }
+}
