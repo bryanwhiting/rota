@@ -176,3 +176,34 @@
 @keyframes hud-2d-enter {
   from { opacity: 0; transform: scale(.97); }
 }
+
+/* Only the containing size changes in the spatial Settings overview. */
+.mini-canvas {
+  grid-template-rows: repeat(3, 290px);
+}
+
+.mini-hud-wheel { width: 100%; }
+
+.mini-hud-wheel .hud-scene {
+  width: 100%;
+  height: 220px;
+  min-height: 0;
+  border: 1px solid #1e4b75;
+  border-radius: 12px;
+}
+
+.mini-hud-node.selected .hud-scene { border-color: var(--node-accent); }
+.mini-hud-wheel .mini-hud-name { margin-top: 6px; }
+.mini-hud-wheel .hud-orbit { top: 10px; left: 10px; }
+.mini-hud-wheel .hud-swipe-hint { display: none; }
+
+.hud-edit-center {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.hud-edit-center:focus-visible {
+  stroke: var(--hud-accent);
+  stroke-width: 2;
+}

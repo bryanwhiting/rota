@@ -248,21 +248,22 @@ function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updat
     setSelectedTile(index);
     setSelectedDeep(0);
   };
-  const openEditor = (id: string, tileIndex = 0) => {
+  const openEditor = (id: string, tileIndex = 0, childIndex = 0) => {
     selectLayer(id);
     setSelectedTile(tileIndex);
-    setSelectedDeep(0);
+    setSelectedDeep(childIndex);
     setEditorOpen(true);
   };
-  const addDeepOption = (tileIndex: number) => {
-    const nextIndex = layer.tiles[tileIndex]?.children?.length ?? 0;
-    updateLayer(draft => {
-      const tile = draft.tiles[tileIndex];
+  const addDeepOption = (tileIndex: number, layerId = layer.id) => {
+    const target = profile.layers.find(item => item.id === layerId);
+    if (!target?.tiles[tileIndex]) return;
+    const nextIndex = target.tiles[tileIndex].children?.length ?? 0;
+    update(draft => {
+      const tile = draft.profiles.find(item => item.id === profile.id)!.layers.find(item => item.id === layerId)!.tiles[tileIndex];
       tile.children ??= [];
       tile.children.push({ id: crypto.randomUUID(), label: `Hold ${tile.children.length + 1}`, icon: ">", action: "Unassigned" });
     });
-    setSelectedTile(tileIndex);
-    setSelectedDeep(nextIndex);
+    openEditor(layerId, tileIndex, nextIndex);
   };
   const removeDeepOption = (index: number) => updateLayer(draft => {
     draft.tiles[selectedTile].children?.splice(index, 1);
@@ -270,7 +271,7 @@ function HudPage({ state, profile, layer, layerIndex, selectLayer, update, updat
     setSelectedDeep(Math.max(0, index - 1));
   });
   return <div className="page hud-studio hud-canvas-page">
-    <LayerMap profile={profile} selectedLayerId={layer.id} editLayer={openEditor} addLayer={addLayer} moveLayer={moveLayer}/>
+    <LayerMap profile={profile} selectedLayerId={layer.id} animate={state.hudAnimations} navigate={navigate} editLayer={openEditor} addDeepOption={(id, index) => addDeepOption(index, id)} addLayer={addLayer} moveLayer={moveLayer}/>
     {editorOpen && <div className="hud-editor-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setEditorOpen(false); }}>
       <section className="hud-editor-modal" role="dialog" aria-modal="true" aria-labelledby="hud-editor-title">
         <header className="hud-editor-modal-header">

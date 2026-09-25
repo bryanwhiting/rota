@@ -12,6 +12,7 @@ interface HudSceneProps {
   onSelect?: (index: number) => void;
   onSelectChild?: (tileIndex: number, childIndex: number) => void;
   onAddDeep?: (index: number) => void;
+  onEditLayer?: () => void;
 }
 
 interface DragState {
@@ -69,7 +70,12 @@ const labelAnchor = (angle: number) => {
   return horizontal > 0.28 ? "start" : horizontal < -0.28 ? "end" : "middle";
 };
 
-export function HudScene({
+// Every HUD surface uses this renderer; only editable enables authoring controls.
+export function HudScene(props: HudSceneProps) {
+  return <HudSceneContent key={props.layer.id} {...props}/>;
+}
+
+function HudSceneContent({
   layer,
   layerIndex,
   layerCount,
@@ -79,7 +85,8 @@ export function HudScene({
   selectedIndex,
   onSelect,
   onSelectChild,
-  onAddDeep
+  onAddDeep,
+  onEditLayer
 }: HudSceneProps) {
   const svg = useRef<SVGSVGElement>(null);
   const drag = useRef<DragState>({ active: false, x: 0, y: 0, didHold: false, hit: null });
@@ -143,6 +150,7 @@ export function HudScene({
   };
 
   const pointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!drag.current.active && (event.target as Element).closest(".hud-add-sector, .hud-deep-sector")) return;
     const hit = indexFromPoint(event.clientX, event.clientY);
     setHovered(hit);
     if (!drag.current.active) return;
@@ -222,6 +230,14 @@ export function HudScene({
             <circle className="hud-hub" r="30"/>
             <text className="hud-hub-title" y="-3" textAnchor="middle">ROTA</text>
             <text className="hud-hub-subtitle" y="10" textAnchor="middle">{showDeep ? "HOLD" : String(layerIndex + 1).padStart(2, "0")}</text>
+            {editable && onEditLayer && <circle className="hud-edit-center" r="30" role="button" tabIndex={0}
+              aria-label={`Edit ${layer.name}`} onPointerDown={event => event.stopPropagation()}
+              onClick={onEditLayer} onKeyDown={event => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onEditLayer();
+                }
+              }}/>}
           </g>
 
           {showDeep && selected !== null && children.map((child, index) => {
